@@ -40,18 +40,21 @@ function GremlinClient(port, host, options) {
 
   this.commands = {};
 
-  // Open websocket connection
-  this.ws = new WebSocket('ws://'+ this.host +':'+ this.port);
+  // Open websocket connection  
+  this.initializeWS = function() {
+	  this.ws = new WebSocket('ws://'+ this.host +':'+ this.port);
 
-  this.ws.onopen = this.onConnectionOpen.bind(this);
+	  this.ws.onopen = this.onConnectionOpen.bind(this);
 
-  this.ws.onerror = function(e) {
-    console.log('Error:', e);
+	  this.ws.onerror = function(e) {
+		console.log('Error:', e);
+	  };
+
+	  this.ws.onmessage = this.handleMessage.bind(this);
+
+	  this.ws.onclose = this.handleDisconnection.bind(this);
   };
-
-  this.ws.onmessage = this.handleMessage.bind(this);
-
-  this.ws.onclose = this.handleDisconnection.bind(this);
+  this.initializeWS();  
 }
 
 inherits(GremlinClient, EventEmitter);
@@ -101,10 +104,13 @@ GremlinClient.prototype.onConnectionOpen = function() {
  * @param {CloseEvent} event
  */
 GremlinClient.prototype.handleDisconnection = function(event) {
-  this.cancelPendingCommands({
-    message: 'WebSocket closed',
-    details: event
-  });
+  this.ws = null;
+  this.initializeWS();
+  
+  //this.cancelPendingCommands({
+  //  message: 'WebSocket closed',
+  //  details: event
+  //});
 };
 
 /**
