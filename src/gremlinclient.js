@@ -86,7 +86,7 @@ GremlinClient.prototype.handleMessage = function(event) {
         break;
       default:
         delete this.commands[rawMessage.requestId];
-        messageStream.emit('error', new Error(statusMessage + ' (Error '+ statusCode +')'));
+        messageStream.emit('error', new Error(rawMessage.status.message + ' (Error '+ statusCode +')'));
         break;
     }
 };
