@@ -48,6 +48,7 @@ function GremlinClient(port, host, options) {
 
 	  this.ws.onerror = function(e) {
 		console.log('Error:', e);
+        throw e;
 	  };
 
 	  this.ws.onmessage = this.handleMessage.bind(this);
