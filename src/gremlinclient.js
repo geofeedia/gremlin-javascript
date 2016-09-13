@@ -40,18 +40,22 @@ function GremlinClient(port, host, options) {
 
   this.commands = {};
 
-  // Open websocket connection
-  this.ws = new WebSocket('ws://'+ this.host +':'+ this.port);
+  // Open websocket connection  
+  this.initializeWS = function() {
+	  this.ws = new WebSocket('ws://'+ this.host +':'+ this.port);
 
-  this.ws.onopen = this.onConnectionOpen.bind(this);
+	  this.ws.onopen = this.onConnectionOpen.bind(this);
 
-  this.ws.onerror = function(e) {
-    console.log('Error:', e);
+	  this.ws.onerror = function(e) {
+		console.log('Error:', e);
+        throw e;
+	  };
+
+	  this.ws.onmessage = this.handleMessage.bind(this);
+
+	  this.ws.onclose = this.handleDisconnection.bind(this);
   };
-
-  this.ws.onmessage = this.handleMessage.bind(this);
-
-  this.ws.onclose = this.handleDisconnection.bind(this);
+  this.initializeWS();  
 }
 
 inherits(GremlinClient, EventEmitter);
@@ -69,21 +73,23 @@ GremlinClient.prototype.handleMessage = function(event) {
   var messageStream = command.messageStream;
 
   switch (statusCode) {
-    case 200: // SUCCESS
-      delete this.commands[rawMessage.requestId]; // TODO: optimize performance
-      messageStream.push(rawMessage);
-      messageStream.push(null);
-      break;
-    case 204: // NO_CONTENT
-      messageStream.push(null);
-      break;
-    case 206: // PARTIAL_CONTENT
-      messageStream.push(rawMessage);
-      break;
-    default:
-      messageStream.emit('error', new Error(rawMessage.status.message + ' (Error '+ statusCode +')'));
-      break;
-  }
+      case 200: // SUCCESS
+        delete this.commands[rawMessage.requestId]; // TODO: optimize performance
+        messageStream.push(rawMessage);
+        messageStream.push(null);
+        break;
+      case 204: // NO_CONTENT
+        delete this.commands[rawMessage.requestId];
+        messageStream.push(null);
+        break;
+      case 206: // PARTIAL_CONTENT
+        messageStream.push(rawMessage);
+        break;
+      default:
+        delete this.commands[rawMessage.requestId];
+        messageStream.emit('error', new Error(rawMessage.status.message + ' (Error '+ statusCode +')'));
+        break;
+    }
 };
 
 /**
@@ -101,10 +107,13 @@ GremlinClient.prototype.onConnectionOpen = function() {
  * @param {CloseEvent} event
  */
 GremlinClient.prototype.handleDisconnection = function(event) {
-  this.cancelPendingCommands({
-    message: 'WebSocket closed',
-    details: event
-  });
+  this.ws = null;
+  this.initializeWS();
+  
+  //this.cancelPendingCommands({
+  //  message: 'WebSocket closed',
+  //  details: event
+  //});
 };
 
 /**
